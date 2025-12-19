@@ -169,6 +169,4 @@ r = w_rot * r_rotation + w_contact * r_contact + w_vel * r_velocity + w_action *
 
 编辑 `envs/leap_hand_env.py` 中的 `_compute_reward` 方法。
 
-## License
 
-MIT License
