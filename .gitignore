@@ -1,3 +1,7 @@
+my.md
+env1_tolerance.py
+
+
 # Python cache
 __pycache__/
 *.py[cod]
@@ -37,4 +41,3 @@ dist/
 *.bin
 
 
-1.md
