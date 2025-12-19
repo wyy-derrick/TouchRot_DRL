@@ -35,3 +35,6 @@ dist/
 # MuJoCo temporary
 *.mjb
 *.bin
+
+
+1.md
