@@ -1,0 +1,100 @@
+# ==================== 项目配置文件 ====================
+# LeapHand 灵巧手手内旋转任务 - SAC强化学习
+
+# ==================== 环境配置 ====================
+env:
+  # 模型路径 (相对于项目根目录)
+  model_path: "scene_left(cubic).xml"
+  
+  # 仿真参数
+  frame_skip: 5                    # 每个RL步执行的物理步数
+  max_episode_steps: 1000          # 最大episode步数
+  
+  # 动作参数
+  action_scale: 0.1                # 动作缩放因子
+  
+  # 触觉传感器参数
+  tactile_threshold: 0.01          # 力阈值 (N)
+  tactile_margin: 0.005            # 容忍距离 (m)
+  
+  # 终止条件
+  drop_height: 0.05                # 掉落高度阈值 (m)
+  
+  # 奖励权重
+  reward_weights:
+    rotation: 10.0                 # 旋转奖励
+    contact: 1.0                   # 接触奖励
+    velocity: -0.1                 # 速度惩罚
+    action: -0.01                  # 动作惩罚
+    drop: -50.0                    # 掉落惩罚
+
+# ==================== SAC算法配置 ====================
+sac:
+  # 折扣因子
+  gamma: 0.99
+  
+  # 软更新系数
+  tau: 0.005
+  
+  # 学习率
+  lr_actor: 0.0003
+  lr_critic: 0.0003
+  lr_alpha: 0.0003
+  
+  # 网络结构
+  hidden_dim: 256
+  
+  # 熵调整
+  auto_entropy_tuning: true
+  alpha: 0.2                       # 固定alpha (auto_entropy_tuning=false时使用)
+
+# ==================== 训练配置 ====================
+training:
+  # 总训练步数
+  total_timesteps: 1000000
+  
+  # 开始学习前的随机探索步数
+  start_steps: 10000
+  
+  # 经验回放池
+  buffer_size: 1000000
+  batch_size: 256
+  
+  # 更新频率
+  update_every: 1                  # 每N步更新一次
+  updates_per_step: 1              # 每次更新执行的梯度步数
+  
+  # 梯度裁剪
+  grad_clip: 1.0                   # 梯度裁剪阈值
+  
+  # 评估
+  eval_freq: 10000                 # 评估频率 (步数)
+  eval_episodes: 5                 # 评估时运行的episode数
+  
+  # 保存
+  save_freq: 50000                 # 模型保存频率 (步数)
+  checkpoint_dir: "checkpoints/sac"
+  
+  # 日志
+  log_dir: "logs"
+  log_freq: 1000                   # 日志记录频率 (步数)
+  
+  # 随机种子
+  seed: 42
+  
+  # 设备
+  device: "auto"                   # "auto", "cuda", "cpu"
+
+# ==================== 演示配置 ====================
+demo:
+  # 加载的模型路径
+  model_path: "checkpoints/sac/best_model.pth"
+  
+  # 渲染帧率
+  render_fps: 30
+  
+  # 演示episode数
+  num_episodes: 10
+  
+  # 是否打印触觉信息
+  print_tactile: true
