@@ -6,6 +6,7 @@ Leap Hand 强化学习环境
 import os
 import numpy as np
 import mujoco
+import mujoco.viewer
 from gymnasium import Env
 from gymnasium.spaces import Box
 
