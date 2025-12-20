@@ -49,7 +49,7 @@ def print_tactile_state(tactile_info):
     print("-" * 40)
 
 
-def demo(model_path, config_path='configs/config.yaml', num_episodes=5, print_tactile=True):
+def demo(model_path, config_path='configs/config.yaml', num_episodes=50, print_tactile=True):
     """演示函数"""
     
     # 加载配置
@@ -153,11 +153,11 @@ def demo(model_path, config_path='configs/config.yaml', num_episodes=5, print_ta
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='LeapHand 模型演示')
-    parser.add_argument('--model', type=str, default='checkpoints/sac/best_model.pth',
+    parser.add_argument('--model', type=str, default='checkpoints/sac/model_20251220_234907_step_550000.pth',
                         help='模型路径')
     parser.add_argument('--config', type=str, default='configs/config.yaml',
                         help='配置文件路径')
-    parser.add_argument('--episodes', type=int, default=5,
+    parser.add_argument('--episodes', type=int, default=50,
                         help='演示Episode数')
     parser.add_argument('--no-tactile', action='store_true',
                         help='不打印触觉信息')

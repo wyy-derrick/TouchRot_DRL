@@ -119,7 +119,8 @@ def train(config_path='configs/config.yaml'):
     )
     
     # 创建Logger
-    experiment_name = f"sac_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+    timestamp_str = datetime.now().strftime('%Y%m%d_%H%M%S')
+    experiment_name = f"sac_{timestamp_str}"
     logger = Logger(
         log_dir=train_config['log_dir'],
         experiment_name=experiment_name
@@ -222,12 +223,12 @@ def train(config_path='configs/config.yaml'):
             # 保存最佳模型
             if eval_result['mean_reward'] > best_eval_reward:
                 best_eval_reward = eval_result['mean_reward']
-                agent.save(os.path.join(checkpoint_dir, 'best_model.pth'))
+                agent.save(os.path.join(checkpoint_dir, f'best_model_{timestamp_str}.pth'))
                 print(f"[保存] 新的最佳模型! 奖励: {best_eval_reward:.2f}")
                 
         # 定期保存
         if timestep % save_freq == 0:
-            agent.save(os.path.join(checkpoint_dir, f'model_step_{timestep}.pth'))
+            agent.save(os.path.join(checkpoint_dir, f'model_{timestamp_str}_step_{timestep}.pth'))
             
     # 训练结束
     total_time = time.time() - start_time
@@ -239,7 +240,7 @@ def train(config_path='configs/config.yaml'):
     print("=" * 60)
     
     # 保存最终模型
-    agent.save(os.path.join(checkpoint_dir, 'final_model.pth'))
+    agent.save(os.path.join(checkpoint_dir, f'final_model_{timestamp_str}.pth'))
     
     # 关闭
     logger.close()

@@ -21,7 +21,8 @@ from utils.tactile_utils import (
 from utils.math_utils import (
     quat_to_euler, 
     get_rotation_angle_z, 
-    compute_rotation_delta_z
+    compute_rotation_delta_z,
+    quat_to_rotation_matrix
 )
 
 
@@ -34,7 +35,8 @@ class LeapHandEnv(Env):
         - qvel: 16维 (16个关节速度)
         - tactile: 17维 (17个触觉传感器二值状态)
         - target_axis: 3维 (目标旋转轴)
-        总维度: 52
+        - last_action: 16维 (上一帧平滑动作)
+        总维度: 68
         
     动作空间:
         - 16维连续动作 [-1, 1]
@@ -115,8 +117,8 @@ class LeapHandEnv(Env):
             dtype=np.float32
         )
         
-        # 观测空间: qpos(16) + qvel(16) + tactile(17) + target_axis(3) = 52
-        obs_dim = self.n_joints * 2 + NUM_SENSORS + 3
+        # 观测空间: qpos(16) + qvel(16) + tactile(17) + target_axis(3) + last_action(16) = 68
+        obs_dim = self.n_joints * 2 + NUM_SENSORS + 3 + self.n_joints
         self.observation_space = Box(
             low=-np.inf, 
             high=np.inf, 
@@ -133,6 +135,22 @@ class LeapHandEnv(Env):
         
         # 掉落检测阈值
         self.drop_height = self.config.get('drop_height', 0.05)
+
+        # 动作平滑 (EMA) 设置
+        self.act_smoothing = self.config.get('act_smoothing', 0.8)
+        self.last_smoothed_action = np.zeros(self.n_joints, dtype=np.float32)
+
+        # 指尖Site列表（用于距离奖励）
+        default_tip_sites = ['if_tip_site', 'mf_tip_site', 'rf_tip_site', 'th_tip_site']
+        tip_site_names = self.config.get('tip_site_names', default_tip_sites)
+        self.tip_site_ids = []
+        for site_name in tip_site_names:
+            try:
+                site_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_SITE, site_name)
+            except mujoco.Error:
+                site_id = -1
+            if site_id != -1:
+                self.tip_site_ids.append(site_id)
         
     def reset(self, seed=None, options=None):
         """
@@ -147,6 +165,9 @@ class LeapHandEnv(Env):
         # 重置MuJoCo数据
         mujoco.mj_resetData(self.model, self.data)
         
+        # 重置平滑动作缓存
+        self.last_smoothed_action = np.zeros(self.n_joints, dtype=np.float32)
+
         # 重置物体位置
         self._reset_box_position()
         
@@ -179,10 +200,16 @@ class LeapHandEnv(Env):
             truncated: 是否截断
             info: 额外信息
         """
-        # 应用动作 (相对位置控制)
-        action = np.clip(action, -1.0, 1.0)
+        # 应用动作 (相对位置控制 + EMA平滑)
+        raw_action = np.clip(action, -1.0, 1.0)
+        smoothed_action = (
+            self.act_smoothing * raw_action +
+            (1.0 - self.act_smoothing) * self.last_smoothed_action
+        )
+        self.last_smoothed_action = smoothed_action.copy()
+
         current_ctrl = self.data.ctrl.copy()
-        target_ctrl = current_ctrl + action * self.action_scale
+        target_ctrl = current_ctrl + smoothed_action * self.action_scale
         
         # 限制在执行器范围内
         for i in range(self.n_joints):
@@ -205,7 +232,7 @@ class LeapHandEnv(Env):
         current_box_quat = self._get_box_quaternion()
         
         # 计算奖励
-        reward, reward_info = self._compute_reward(action, current_box_quat)
+        reward, reward_info = self._compute_reward(smoothed_action, current_box_quat)
         
         # 更新上一步姿态
         self.prev_box_quat = current_box_quat.copy()
@@ -245,60 +272,82 @@ class LeapHandEnv(Env):
         # 目标旋转轴
         target = self.target_axis.copy()
         
-        # 拼接观测 (保持52维: 16+16+17+3=52)
-        obs = np.concatenate([qpos, qvel, tactile, target]).astype(np.float32)
+        # 上一帧平滑动作
+        last_act = self.last_smoothed_action.copy()
+
+        # 拼接观测 (68维)
+        obs = np.concatenate([qpos, qvel, tactile, target, last_act]).astype(np.float32)
         
         return obs
     
     def _compute_reward(self, action, current_quat):
         """
         计算奖励
-        
-        奖励公式: r = w_rot * r_rot + w_contact * r_contact + w_vel * r_vel + w_action * r_action
+        新增: torque, work, distance 奖励项
         """
         reward_info = {}
+
+        # 0. 物体与指尖距离奖励 (有界)
+        box_pos = self._get_box_position()
+        fingertip_rewards = []
+        for site_id in self.tip_site_ids:
+            tip_pos = self.data.site_xpos[site_id]
+            dist = np.linalg.norm(tip_pos - box_pos)
+            fingertip_rewards.append(np.clip(0.1 / (0.02 + 4.0 * dist), 0.0, 1.0))
+        r_fingertip_dist = float(np.mean(fingertip_rewards)) if fingertip_rewards else 0.0
+        reward_info['fingertip_dist'] = r_fingertip_dist
         
-        # 1. 旋转奖励 (绕Z轴的旋转增量)
+        # 1. 旋转奖励 (spin_coef)
         delta_angle = compute_rotation_delta_z(self.prev_box_quat, current_quat)
-        r_rot = delta_angle  # 正向旋转为正奖励
+        r_rot = np.clip(delta_angle, -0.157, 0.157)
         reward_info['rotation'] = r_rot
         
-        # 2. 接触奖励 (鼓励指尖接触物体)
-        tactile_state = get_binary_tactile_state(
-            self.model, self.data,
-            threshold=self.tactile_threshold,
-            margin=self.tactile_margin
-        )
-        # 指尖传感器索引 (索引13-16对应if_tip, mf_tip, rf_tip, th_tip)
-        # SENSOR_NAMES中指尖位于索引13,14,15,16
-        tip_indices = list(range(13, 17))  # [13, 14, 15, 16]
-        tip_contacts = sum(tactile_state[i] for i in tip_indices)
-        r_contact = tip_contacts / len(tip_indices)  # 归一化到[0, 1]
-        reward_info['contact'] = r_contact
-        
-        # 3. 速度惩罚 (物体线速度)
+        # 2. 速度惩罚 (vel_coef)
         box_vel = self._get_box_velocity()
-        r_velocity = np.linalg.norm(box_vel[:3])  # 只考虑线速度
+        r_velocity = np.linalg.norm(box_vel[:3])
         reward_info['velocity'] = r_velocity
+
+        # 3. 力矩惩罚 (torque_coef)
+        # 获取执行器输出的力/力矩
+        # 注意：只取前 n_joints 个，对应手部关节
+        actuator_forces = self.data.qfrc_actuator[:self.n_joints]
+        r_torque = np.sum(np.square(actuator_forces))
+        reward_info['torque'] = r_torque
+
+        # 4. 功/功率惩罚 (work_coef)
+        # 功率 P = Force * Velocity
+        joint_vel = self.data.qvel[:self.n_joints]
+        r_work = np.sum(np.abs(actuator_forces * joint_vel))
+        reward_info['work'] = r_work
+
+        # 5. 距离惩罚 (distRewardScale)
+        # 计算物体偏离手掌中心的距离
+        # 假设手掌中心安全区域大概在 x=-0.05, y=0.05
+        target_pos_xy = np.array([-0.05, 0.05]) # 目标XY中心
+        dist = np.linalg.norm(box_pos[:2] - target_pos_xy)
+        r_dist = dist
+        reward_info['distance'] = r_dist
         
-        # 4. 动作惩罚 (动作幅度)
-        r_action = np.sum(np.square(action))
-        reward_info['action'] = r_action
-        
-        # 5. 掉落惩罚
-        box_pos = self._get_box_position()
+        # 6. 掉落惩罚 (fallPenalty)
+        # 已经在 _check_termination 中处理重置，这里作为单步惩罚
         r_drop = 0.0
         if box_pos[2] < self.drop_height:
-            r_drop = 1.0
+             r_drop = 1.0
         reward_info['drop'] = r_drop
         
+        # 获取权重 (兼容旧配置，如果没有定义的键则默认为0)
+        weights = self.reward_weights
+
         # 计算总奖励
         total_reward = (
-            self.reward_weights['rotation'] * r_rot +
-            self.reward_weights['contact'] * r_contact +
-            self.reward_weights['velocity'] * r_velocity +
-            self.reward_weights['action'] * r_action +
-            self.reward_weights['drop'] * r_drop
+            weights.get('rotation', 0) * r_rot +
+            weights.get('velocity', 0) * r_velocity +
+            weights.get('torque', 0) * r_torque +
+            weights.get('work', 0) * r_work +
+            weights.get('fingertip_dist', 0) * r_fingertip_dist +
+            weights.get('distance', 0) * r_dist +
+            weights.get('drop', 0) * r_drop +
+            weights.get('action', 0) * np.sum(np.square(action))
         )
         
         reward_info['total'] = total_reward
@@ -306,13 +355,36 @@ class LeapHandEnv(Env):
         return total_reward, reward_info
     
     def _check_termination(self):
-        """检查是否终止"""
-        # 物体掉落
+        """检查是否终止 (重置条件)"""
         box_pos = self._get_box_position()
+        
+        # 1. 掉落检测 (Z轴高度)
         if box_pos[2] < self.drop_height:
             return True
             
-        # 检查是否与地面接触
+        # 2. 检查物体 X 坐标是否超出安全区域
+        # 阈值: -0.145 到 0.045
+        if box_pos[0] < -0.145 or box_pos[0] > 0.045:
+            return True
+
+        # 3. 检查物体旋转轴倾角 (Z轴偏差)
+        current_quat = self._get_box_quaternion()
+        # 将四元数转为旋转矩阵
+        R = quat_to_rotation_matrix(current_quat)
+        # 旋转矩阵的第三列 R[:, 2] 是物体局部 Z 轴在世界坐标系下的方向向量
+        obj_z_axis = R[:, 2]
+        # 目标 Z 轴 (世界坐标系 Z 轴)
+        target_axis = np.array([0.0, 0.0, 1.0])
+        
+        # 计算夹角: dot = cos(theta)
+        dot_product = np.clip(np.dot(obj_z_axis, target_axis), -1.0, 1.0)
+        angle_diff = np.arccos(dot_product)
+        
+        # 阈值 0.4 * pi
+        if angle_diff > 0.4 * np.pi:
+            return True
+
+        # 4. 检查是否与地面接触 (原有逻辑)
         for i in range(self.data.ncon):
             contact = self.data.contact[i]
             geom1_body = self.model.geom_bodyid[contact.geom1]
@@ -332,10 +404,14 @@ class LeapHandEnv(Env):
         重置物体位置
         按照1.md要求：方向固定，确保旋转轴（Z轴）相对手掌明确
         """
-        # 随机位置（在手掌上方）
-        new_x = np.random.uniform(-0.1, 0.02)
-        new_y = np.random.uniform(0.015, 0.085)
-        new_z = np.random.uniform(0.2, 0.25)
+        # 限制在手心中心的小圆区域
+        center_x, center_y = -0.05, 0.05
+        radius = 0.01
+        angle = np.random.uniform(0, 2 * np.pi)
+        r = np.random.uniform(0, radius)
+        new_x = center_x + r * np.cos(angle)
+        new_y = center_y + r * np.sin(angle)
+        new_z = 0.136
         
         # 获取qpos地址
         qpos_adr = self.model.jnt_qposadr[self.box_joint_id]

@@ -22,11 +22,15 @@ env:
   
   # 奖励权重
   reward_weights:
-    rotation: 10.0                 # 旋转奖励
-    contact: 1.0                   # 接触奖励
-    velocity: -0.1                 # 速度惩罚
-    action: -0.01                  # 动作惩罚
+    rotation: 20.0                 # 强化旋转奖励，驱动主要目标
+    velocity: -0.1                 # 抑制物体飞出
+    torque: -0.0001                # 轻微力矩惩罚，抑制抖动
+    work: -0.0001                  # 轻微功率惩罚
     drop: -50.0                    # 掉落惩罚
+    distance: -1.0                 # 距离惩罚
+    contact: 0.0                   # 不再单独奖励接触
+    action: -0.001                 # 轻微动作惩罚
+    fingertip_dist: 2.0            # 有界指尖距离奖励
 
 # ==================== SAC算法配置 ====================
 sac:
@@ -45,7 +49,7 @@ sac:
   hidden_dim: 256
   
   # 熵调整
-  auto_entropy_tuning: true
+  auto_entropy_tuning: false       # 关闭自动调整
   alpha: 0.2                       # 固定alpha (auto_entropy_tuning=false时使用)
 
 # ==================== 训练配置 ====================
