@@ -197,7 +197,7 @@ def demo(model_path, config_path='configs/config.yaml', num_episodes=50, print_t
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='LeapHand 模型演示')
-    parser.add_argument('--model', type=str, default='checkpoints/sac/model_20251221_214654_step_100000.pth',
+    parser.add_argument('--model', type=str, default='checkpoints/sac/model_20251221_224646_step_100000.pth',
                         help='模型路径')
     parser.add_argument('--config', type=str, default='configs/config.yaml',
                         help='配置文件路径')

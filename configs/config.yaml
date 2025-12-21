@@ -22,15 +22,16 @@ env:
   
   # 奖励权重
   reward_weights:
-    rotation: 20.0                 # 强化旋转奖励，驱动主要目标
-    velocity: -2.0                 # 抑制物体飞出
-    torque: -0.01                # 轻微力矩惩罚，抑制抖动
-    work: -0.01                  # 轻微功率惩罚
-    drop: -10.0                    # 掉落惩罚
-    distance: -0.5                 # 距离惩罚
+    rotation: 100.0                 # 强化旋转奖励，驱动主要目标
+    velocity: -0.1                 # 抑制物体飞出
+    torque: -0.001                # 轻微力矩惩罚，抑制抖动
+    work: -0.001                  # 轻微功率惩罚
+    drop: -1.0                    # 掉落惩罚
+    distance: -0.01                 # 距离惩罚
     contact: 0.0                   # 不再单独奖励接触
     action: -0.0                 # 轻微动作惩罚
-    fingertip_dist: 1.5            # 有界指尖距离奖励
+    fingertip_dist: 0.1            # 有界指尖距离奖励
+    collision: -0.0001               # 非物体接触惩罚，抑制手指互撞/碰地
 
 # ==================== SAC算法配置 ====================
 sac:

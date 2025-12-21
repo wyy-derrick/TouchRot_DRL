@@ -170,6 +170,9 @@ class LeapHandEnv(Env):
 
         # 重置物体位置
         self._reset_box_position()
+
+        # # 重置手的姿态
+        # self._reset_hand_position()  
         
         # 前向运动学计算
         mujoco.mj_forward(self.model, self.data)
@@ -340,6 +343,24 @@ class LeapHandEnv(Env):
         # 7. 动作惩罚 (action_coef)
         r_action = np.sum(np.square(action))
         reward_info['action'] = r_action
+
+        # 8. 非物体接触惩罚 (collision_coef)
+        r_collision = 0.0
+        for i in range(self.data.ncon):
+            contact = self.data.contact[i]
+            if contact.geom1 < 0 or contact.geom2 < 0:
+                continue
+
+            body1 = self.model.geom_bodyid[contact.geom1]
+            body2 = self.model.geom_bodyid[contact.geom2]
+            if body1 == self.box_body_id or body2 == self.box_body_id:
+                continue  # 允许物体相关接触
+
+            contact_force = np.zeros(6)
+            mujoco.mj_contactForce(self.model, self.data, i, contact_force)
+            r_collision += np.linalg.norm(contact_force[:3])
+
+        reward_info['collision'] = r_collision
         
         # 获取权重 (兼容旧配置，如果没有定义的键则默认为0)
         weights = self.reward_weights
@@ -353,6 +374,7 @@ class LeapHandEnv(Env):
             weights.get('fingertip_dist', 0) * r_fingertip_dist +
             weights.get('distance', 0) * r_dist +
             weights.get('drop', 0) * r_drop +
+            weights.get('collision', 0) * r_collision +
             weights.get('action', 0) * r_action
         )
         
