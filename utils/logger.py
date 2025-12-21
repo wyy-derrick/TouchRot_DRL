@@ -118,7 +118,7 @@ class Logger:
         if alpha is not None:
             self.writer.add_scalar('Train/Alpha', alpha, step)
             
-    def log_reward_components(self, step, reward_dict):
+    def log_reward_components(self, step, reward_dict, prefix='Reward'):
         """
         记录奖励各分量
         
@@ -127,7 +127,7 @@ class Logger:
             reward_dict: 奖励分量字典 {'rotation': ..., 'contact': ..., ...}
         """
         for key, value in reward_dict.items():
-            self.writer.add_scalar(f'Reward/{key}', value, step)
+            self.writer.add_scalar(f'{prefix}/{key}', value, step)
             
     def log_network_gradients(self, step, model, name_prefix=''):
         """

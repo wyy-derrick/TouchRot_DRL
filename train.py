@@ -13,6 +13,8 @@ import os
 import sys
 import argparse
 import time
+from collections import defaultdict
+
 import numpy as np
 import torch
 import yaml
@@ -135,6 +137,7 @@ def train(config_path='configs/config.yaml'):
     start_steps = train_config['start_steps']
     batch_size = train_config['batch_size']
     update_every = train_config['update_every']
+    updates_per_step = train_config.get('updates_per_step', 1)
     eval_freq = train_config['eval_freq']
     save_freq = train_config['save_freq']
     log_freq = train_config['log_freq']
@@ -144,6 +147,8 @@ def train(config_path='configs/config.yaml'):
     episode_count = 0
     episode_reward = 0
     episode_length = 0
+    episode_reward_components_raw = defaultdict(float)
+    episode_reward_components_weighted = defaultdict(float)
     
     # 初始化环境
     state, _ = env.reset()
@@ -177,6 +182,16 @@ def train(config_path='configs/config.yaml'):
         state = next_state
         episode_reward += reward
         episode_length += 1
+
+        reward_info = info.get('reward_info', {}) if info is not None else {}
+        if reward_info:
+            for key, value in reward_info.items():
+                if key == 'total':
+                    episode_reward_components_weighted['total'] += value
+                    continue
+                episode_reward_components_raw[key] += value
+                weight = env.reward_weights.get(key, 0.0)
+                episode_reward_components_weighted[key] += weight * value
         
         # Episode结束
         if done or truncated:
@@ -186,6 +201,13 @@ def train(config_path='configs/config.yaml'):
             # 记录Episode信息
             logger.log_scalar('Episode/Reward', episode_reward, episode_count)
             logger.log_scalar('Episode/Length', episode_length, episode_count)
+
+            if episode_reward_components_weighted:
+                weighted_to_log = dict(episode_reward_components_weighted)
+                logger.log_reward_components(episode_count, weighted_to_log, prefix='Reward')
+            if episode_reward_components_raw:
+                raw_to_log = dict(episode_reward_components_raw)
+                logger.log_reward_components(episode_count, raw_to_log, prefix='RewardRaw')
             
             if episode_count % 10 == 0:
                 elapsed = time.time() - start_time
@@ -194,20 +216,26 @@ def train(config_path='configs/config.yaml'):
                       f"Reward: {episode_reward:.2f} | "
                       f"Length: {episode_length} | "
                       f"Time: {elapsed:.1f}s")
-                
+
+            # 重置累计统计
             episode_reward = 0
             episode_length = 0
+            episode_reward_components_raw = defaultdict(float)
+            episode_reward_components_weighted = defaultdict(float)
             
+        # ================= 修改开始 =================
         # 更新网络
         if timestep >= start_steps and timestep % update_every == 0:
+            steps_to_update = int(updates_per_step * update_every)
             if replay_buffer.is_ready(batch_size):
-                update_info = agent.update(replay_buffer, batch_size)
-                
+                for _ in range(steps_to_update):
+                    update_info = agent.update(replay_buffer, batch_size)
                 if timestep % log_freq == 0:
                     logger.log_scalar('Loss/Actor', update_info['actor_loss'], timestep)
                     logger.log_scalar('Loss/Critic', update_info['critic_loss'], timestep)
                     logger.log_scalar('Train/Alpha', update_info['alpha'], timestep)
                     logger.log_scalar('Train/Q_mean', update_info['q_mean'], timestep)
+        # ================= 修改结束 =================
                     
         # 评估
         if timestep % eval_freq == 0:
@@ -249,9 +277,15 @@ def train(config_path='configs/config.yaml'):
 
 
 if __name__ == '__main__':
+    # 创建一个 ArgumentParser 对象 也就是parser
+    # ArgumentParser 对象包含将命令行解析成 Python 数据类型所需的全部信息。
     parser = argparse.ArgumentParser(description='LeapHand SAC训练')
+    # 可以通过--路径指定参数
     parser.add_argument('--config', type=str, default='configs/config.yaml',
                         help='配置文件路径')
+    # 调用 parse_args() 方法来实际解析命令行参数
+    # 返回一个对象 args，可以用 args.config 访问配置文件路
     args = parser.parse_args()
     
+    # 进入tarin主函数 带着命令行加载的参数
     train(args.config)

@@ -14,6 +14,7 @@ import argparse
 import time
 import numpy as np
 import yaml
+from datetime import datetime
 
 # 添加项目根目录到路径
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -52,6 +53,31 @@ def print_tactile_state(tactile_info):
 def demo(model_path, config_path='configs/config.yaml', num_episodes=50, print_tactile=True):
     """演示函数"""
     
+    # 创建日志目录和文件
+    log_dir = 'demo_logs'
+    os.makedirs(log_dir, exist_ok=True)
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    log_file = os.path.join(log_dir, f'demo_log_{timestamp}.txt')
+    
+    # 重定向stdout到文件和终端
+    class Logger:
+        def __init__(self, filename):
+            self.terminal = sys.stdout
+            self.log = open(filename, "w", buffering=1)
+   
+ # 行缓冲
+
+        def write(self, message):
+            self.terminal.write(message)
+            self.log.write(message)
+            
+        def flush(self):
+            self.terminal.flush()
+            self.log.flush()
+            
+    # 设置日志输出
+    sys.stdout = Logger(log_file)
+    
     # 加载配置
     config = load_config(config_path)
     env_config = config['env']
@@ -83,6 +109,7 @@ def demo(model_path, config_path='configs/config.yaml', num_episodes=50, print_t
     print(f"Episode数: {num_episodes}")
     print("按 Ctrl+C 退出")
     print("=" * 60)
+    print(f"日志文件: {log_file}")
     
     total_rewards = []
     
@@ -108,6 +135,18 @@ def demo(model_path, config_path='configs/config.yaml', num_episodes=50, print_t
                 
                 # 渲染
                 env.render()
+                
+                # 打印更多信息用于调试
+                if step % 10 == 0:  # 更频繁地打印调试信息
+                    print(f"Step {step}:")
+                    print(f"  Action mean: {np.mean(action):.4f}, std: {np.std(action):.4f}")
+                    print(f"  Action min: {np.min(action):.4f}, max: {np.max(action):.4f}")
+                    print(f"  Reward: {reward:.4f}")
+                    if 'reward_info' in info:
+                        print(f"  Reward components: {info['reward_info']}")
+                    print(f"  State mean: {np.mean(state):.4f}, std: {np.std(state):.4f}")
+                    print(f"  State min: {np.min(state):.4f}, max: {np.max(state):.4f}")
+                    print("-" * 40)
                 
                 # 打印触觉信息
                 if print_tactile and step % 50 == 0:
@@ -149,11 +188,16 @@ def demo(model_path, config_path='configs/config.yaml', num_episodes=50, print_t
             print("=" * 60)
             
         env.close()
+        
+        # 恢复stdout
+        sys.stdout.log.close()
+        sys.stdout = sys.stdout.terminal
+        print(f"日志已保存到: {log_file}")
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='LeapHand 模型演示')
-    parser.add_argument('--model', type=str, default='checkpoints/sac/model_20251220_234907_step_550000.pth',
+    parser.add_argument('--model', type=str, default='checkpoints/sac/model_20251221_214654_step_100000.pth',
                         help='模型路径')
     parser.add_argument('--config', type=str, default='configs/config.yaml',
                         help='配置文件路径')

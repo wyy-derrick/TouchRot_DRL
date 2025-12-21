@@ -28,6 +28,7 @@ Thumbs.db
 # Logs and checkpoints
 logs/
 checkpoints/
+demo_logs/
 *.log
 
 # Jupyter

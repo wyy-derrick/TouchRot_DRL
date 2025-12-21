@@ -294,7 +294,7 @@ class LeapHandEnv(Env):
             tip_pos = self.data.site_xpos[site_id]
             dist = np.linalg.norm(tip_pos - box_pos)
             fingertip_rewards.append(np.clip(0.1 / (0.02 + 4.0 * dist), 0.0, 1.0))
-        r_fingertip_dist = float(np.mean(fingertip_rewards)) if fingertip_rewards else 0.0
+        r_fingertip_dist = float(np.min(fingertip_rewards)) if fingertip_rewards else 0.0
         reward_info['fingertip_dist'] = r_fingertip_dist
         
         # 1. 旋转奖励 (spin_coef)
@@ -331,9 +331,15 @@ class LeapHandEnv(Env):
         # 6. 掉落惩罚 (fallPenalty)
         # 已经在 _check_termination 中处理重置，这里作为单步惩罚
         r_drop = 0.0
-        if box_pos[2] < self.drop_height:
-             r_drop = 1.0
+        unsafe_x = box_pos[0] < -0.145 or box_pos[0] > 0.045
+        unsafe_y = box_pos[1] < 0.01 or box_pos[1] > 0.10
+        if box_pos[2] < self.drop_height or unsafe_x or unsafe_y:
+            r_drop = 1.0
         reward_info['drop'] = r_drop
+
+        # 7. 动作惩罚 (action_coef)
+        r_action = np.sum(np.square(action))
+        reward_info['action'] = r_action
         
         # 获取权重 (兼容旧配置，如果没有定义的键则默认为0)
         weights = self.reward_weights
@@ -347,7 +353,7 @@ class LeapHandEnv(Env):
             weights.get('fingertip_dist', 0) * r_fingertip_dist +
             weights.get('distance', 0) * r_dist +
             weights.get('drop', 0) * r_drop +
-            weights.get('action', 0) * np.sum(np.square(action))
+            weights.get('action', 0) * r_action
         )
         
         reward_info['total'] = total_reward
@@ -362,9 +368,13 @@ class LeapHandEnv(Env):
         if box_pos[2] < self.drop_height:
             return True
             
-        # 2. 检查物体 X 坐标是否超出安全区域
-        # 阈值: -0.145 到 0.045
-        if box_pos[0] < -0.145 or box_pos[0] > 0.045:
+        # 2. 检查物体 XY 是否超出安全区域
+        # X: [-0.145, 0.045] 对应左右范围
+        # Y: [0.01, 0.10] 对应手掌前后安全区
+        if (
+            box_pos[0] < -0.145 or box_pos[0] > 0.045 or
+            box_pos[1] < 0.01 or box_pos[1] > 0.10
+        ):
             return True
 
         # 3. 检查物体旋转轴倾角 (Z轴偏差)
