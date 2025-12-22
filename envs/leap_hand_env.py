@@ -143,14 +143,23 @@ class LeapHandEnv(Env):
         # 指尖Site列表（用于距离奖励）
         default_tip_sites = ['if_tip_site', 'mf_tip_site', 'rf_tip_site', 'th_tip_site']
         tip_site_names = self.config.get('tip_site_names', default_tip_sites)
+        config_tip_weights = self.config.get('tip_site_weights')
+        if config_tip_weights is not None:
+            base_tip_weights = [float(w) for w in config_tip_weights]
+        else:
+            base_tip_weights = [0.55 if name == 'th_tip_site' else 0.15 for name in tip_site_names]
+
         self.tip_site_ids = []
-        for site_name in tip_site_names:
+        self.tip_site_weights = []
+        for idx, site_name in enumerate(tip_site_names):
             try:
                 site_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_SITE, site_name)
             except mujoco.Error:
                 site_id = -1
             if site_id != -1:
+                weight = base_tip_weights[idx] if idx < len(base_tip_weights) else 0.0
                 self.tip_site_ids.append(site_id)
+                self.tip_site_weights.append(weight)
         
     def reset(self, seed=None, options=None):
         """
@@ -170,9 +179,14 @@ class LeapHandEnv(Env):
 
         # 重置物体位置
         self._reset_box_position()
-
-        # # 重置手的姿态
-        # self._reset_hand_position()  
+        
+        # 设置th_cmc_act初始值为-0.68
+        th_cmc_actuator_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_ACTUATOR, 'th_cmc_act')
+        if th_cmc_actuator_id != -1:
+            actuator_joint_id = self.model.actuator_trnid[th_cmc_actuator_id, 0]
+            self.data.qpos[actuator_joint_id] = -0.68
+            # 同时设置控制信号，使电机保持在该位置
+            self.data.ctrl[th_cmc_actuator_id] = -0.68
         
         # 前向运动学计算
         mujoco.mj_forward(self.model, self.data)
@@ -292,12 +306,18 @@ class LeapHandEnv(Env):
 
         # 0. 物体与指尖距离奖励 (有界)
         box_pos = self._get_box_position()
-        fingertip_rewards = []
-        for site_id in self.tip_site_ids:
+        fingertip_accum = 0.0
+        fingertip_weight_sum = 0.0
+        for site_id, tip_weight in zip(self.tip_site_ids, getattr(self, 'tip_site_weights', [])):
             tip_pos = self.data.site_xpos[site_id]
             dist = np.linalg.norm(tip_pos - box_pos)
-            fingertip_rewards.append(np.clip(0.1 / (0.02 + 4.0 * dist), 0.0, 1.0))
-        r_fingertip_dist = float(np.min(fingertip_rewards)) if fingertip_rewards else 0.0
+            tip_reward = np.clip(0.1 / (0.02 + 4.0 * dist), 0.0, 1.0)
+            fingertip_accum += tip_weight * tip_reward
+            fingertip_weight_sum += tip_weight
+        if fingertip_weight_sum > 0.0:
+            r_fingertip_dist = float(fingertip_accum / fingertip_weight_sum)
+        else:
+            r_fingertip_dist = 0.0
         reward_info['fingertip_dist'] = r_fingertip_dist
         
         # 1. 旋转奖励 (spin_coef)
@@ -437,13 +457,13 @@ class LeapHandEnv(Env):
         按照1.md要求：方向固定，确保旋转轴（Z轴）相对手掌明确
         """
         # 限制在手心中心的小圆区域
-        center_x, center_y = -0.05, 0.05
+        center_x, center_y = -0.11, 0.05
         radius = 0.01
         angle = np.random.uniform(0, 2 * np.pi)
         r = np.random.uniform(0, radius)
         new_x = center_x + r * np.cos(angle)
         new_y = center_y + r * np.sin(angle)
-        new_z = 0.136
+        new_z = 0.15
         
         # 获取qpos地址
         qpos_adr = self.model.jnt_qposadr[self.box_joint_id]

@@ -67,13 +67,13 @@
     </default>
     <default class="thumb_cmc">
       <joint pos="0 0 0" axis="0 0 -1"
-        limited="true" range="-1.849 2.094" />
-      <position ctrlrange="-1.849 2.094" />
+        limited="true" range="-1.849 0.194" />
+      <position ctrlrange="-1.849 0.194" />
     </default>
     <default class="thumb_axl">
       <joint pos="0 0 0" axis="0 0 -1"
-        limited="true" range="-0.949 2.094" />
-      <position ctrlrange="-0.949 2.094" />
+        limited="true" range="-0.949 0.283" />
+      <position ctrlrange="-0.949 0.283" />
     </default>
     <default class="thumb_mcp">
       <joint pos="0 0 0" axis="0 0 -1"
