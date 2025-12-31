@@ -8,7 +8,7 @@ env:
   
   # 仿真参数
   frame_skip: 5                    # 每个RL步执行的物理步数
-  max_episode_steps: 1000          # 最大episode步数
+  max_episode_steps: 500          # 最大episode步数
   
   # 动作参数
   action_scale: 0.1                # 动作缩放因子
@@ -25,7 +25,7 @@ env:
   
   # 奖励权重
   reward_weights:
-    rotation: 100.0                 # 强化旋转奖励，驱动主要目标
+    rotation: 80.0                 # 强化旋转奖励，驱动主要目标
     velocity: -0.1                 # 抑制物体飞出
     torque: -0.0001                # 轻微力矩惩罚，抑制抖动
     work: -0.0001                  # 轻微功率惩罚
@@ -33,8 +33,8 @@ env:
     distance: -0.0                 # 距离惩罚
     contact: 0.0                   # 不再单独奖励接触
     action: -0.0                 # 轻微动作惩罚
-    fingertip_dist: 1.5           # 有界指尖距离奖励
-    collision: -0.0003               # 非物体接触惩罚，抑制手指互撞/碰地
+    fingertip_dist: 0.8           # 有界指尖距离奖励
+    collision: -0.0001               # 非物体接触惩罚，抑制手指互撞/碰地
 
 # ==================== SAC算法配置 ====================
 sac:
@@ -96,7 +96,7 @@ baseline:
 training:
   algo: sac                       # 默认算法，可被命令行参数覆盖
   # 总训练步数
-  total_timesteps: 1000000
+  total_timesteps: 400000
   
   # 开始学习前的随机探索步数
   start_steps: 10000

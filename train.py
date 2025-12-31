@@ -156,6 +156,9 @@ def train_off_policy_loop(env, eval_env, agent, replay_buffer, logger, train_con
             episode_count += 1
             logger.log_scalar('Episode/Reward', episode_reward, episode_count)
             logger.log_scalar('Episode/Length', episode_length, episode_count)
+            # 额外按训练步数记录，用于不同算法统一以Training Iterations为横轴对比
+            logger.log_scalar('Train/EpisodeReward', episode_reward, timestep)
+            logger.log_scalar('Train/EpisodeLength', episode_length, timestep)
             if episode_reward_components_weighted:
                 logger.log_reward_components(episode_count, dict(episode_reward_components_weighted), prefix='Reward')
             if episode_reward_components_raw:
@@ -226,6 +229,9 @@ def train_ppo_loop(env, eval_env, agent, logger, train_config, checkpoint_dir, t
         if done or truncated:
             logger.log_scalar('Episode/Reward', episode_reward, episode_count + 1)
             logger.log_scalar('Episode/Length', episode_length, episode_count + 1)
+            # 额外按训练步数记录，方便跨算法以步数为横轴对比
+            logger.log_scalar('Train/EpisodeReward', episode_reward, timestep)
+            logger.log_scalar('Train/EpisodeLength', episode_length, timestep)
             episode_count += 1
             state, _ = env.reset()
             episode_reward = 0.0
@@ -236,10 +242,10 @@ def train_ppo_loop(env, eval_env, agent, logger, train_config, checkpoint_dir, t
             agent.rollout_buffer.compute_returns_and_advantages(last_value, agent.gamma, agent.gae_lambda)
             update_info = agent.update(agent.rollout_buffer, batch_size)
             agent.rollout_buffer.reset()
-            if timestep % log_freq == 0:
-                logger.log_scalar('Loss/Actor', update_info['actor_loss'], timestep)
-                logger.log_scalar('Loss/Critic', update_info['value_loss'], timestep)
-                logger.log_scalar('Loss/Entropy', update_info['entropy'], timestep)
+            # 每次PPO update都记录loss，不再受log_freq限制
+            logger.log_scalar('Loss/Actor', update_info['actor_loss'], timestep)
+            logger.log_scalar('Loss/Critic', update_info['value_loss'], timestep)
+            logger.log_scalar('Loss/Entropy', update_info['entropy'], timestep)
 
         if timestep % eval_freq == 0:
             eval_result = evaluate(eval_env, agent, num_episodes=train_config.get('eval_episodes', 5))
@@ -277,6 +283,9 @@ def run_baseline_loop(env, agent, logger, train_config):
             episode_count += 1
             logger.log_scalar('Episode/Reward', episode_reward, episode_count)
             logger.log_scalar('Episode/Length', episode_length, episode_count)
+            # Baseline 同样按训练步数记录，便于和RL算法统一对比
+            logger.log_scalar('Train/EpisodeReward', episode_reward, timestep)
+            logger.log_scalar('Train/EpisodeLength', episode_length, timestep)
             print(f"Baseline Episode {episode_count} | Reward: {episode_reward:.2f} | Length: {episode_length}")
             state, _ = env.reset()
             episode_reward = 0.0

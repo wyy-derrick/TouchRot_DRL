@@ -97,6 +97,7 @@ class TD3Agent(BaseAgent):
 
         self.update_count = 0
         self.max_action = 1.0
+        self._last_actor_loss = 0.0  # 记录最近一次非零的actor_loss
 
     def select_action(self, state, evaluate=False):
         state = torch.FloatTensor(state).unsqueeze(0).to(self.device)
@@ -134,6 +135,7 @@ class TD3Agent(BaseAgent):
         self.critic_optimizer.step()
 
         actor_loss = torch.tensor(0.0, device=self.device)
+        actor_updated = False
         if self.update_count % self.policy_freq == 0:
             actor_loss = -self.critic.q1_value(states, self.actor(states)).mean()
             self.actor_optimizer.zero_grad()
@@ -142,12 +144,15 @@ class TD3Agent(BaseAgent):
             self.actor_optimizer.step()
             self._soft_update(self.actor, self.actor_target)
             self._soft_update(self.critic, self.critic_target)
+            self._last_actor_loss = actor_loss.item()  # 保存真正的actor_loss
+            actor_updated = True
 
         self.update_count += 1
 
         return {
             'critic_loss': critic_loss.item(),
-            'actor_loss': actor_loss.item(),
+            'actor_loss': self._last_actor_loss,  # 返回最近一次真正的actor_loss
+            'actor_updated': actor_updated,       # 标记本次是否更新了actor
             'q_mean': current_q1.mean().item()
         }
 

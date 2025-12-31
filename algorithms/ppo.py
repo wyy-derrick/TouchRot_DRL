@@ -178,10 +178,15 @@ class PPOAgent(BaseAgent):
         state_tensor = torch.FloatTensor(state).unsqueeze(0).to(self.device)
         with torch.no_grad():
             if evaluate:
-                mean, _ = self.policy.forward(state_tensor)
+                mean, log_std = self.policy.forward(state_tensor)
+                std = log_std.exp()
                 action = torch.tanh(mean)
-                log_prob = torch.zeros((1, 1), device=self.device)
-                entropy = torch.zeros((1, 1), device=self.device)
+                # 计算 log_prob（即使在评估时也要正确计算，不能为0）
+                normal = Normal(mean, std)
+                z = torch.atanh(action.clamp(-0.999999, 0.999999))
+                log_prob = normal.log_prob(z) - torch.log(1 - action.pow(2) + 1e-6)
+                log_prob = log_prob.sum(dim=-1, keepdim=True)
+                entropy = normal.entropy().sum(dim=-1, keepdim=True)
             else:
                 action, log_prob, entropy, _ = self.policy.sample(state_tensor)
             value = self.value_function(state_tensor)
