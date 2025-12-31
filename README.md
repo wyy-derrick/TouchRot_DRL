@@ -9,6 +9,7 @@
 ### 核心特性
 
 - **核心算法**: SAC (Soft Actor-Critic)
+- **多算法支持**: SAC / PPO / TD3 / Baseline 规则控制
 - **触觉传感**: 17个触觉传感器，带容忍度的接触检测
 - **训练模式**: 无头静默训练，TensorBoard可视化
 - **演示模式**: MuJoCo可视化渲染
@@ -72,10 +73,16 @@ python train.py
 
 # 使用自定义配置
 python train.py --config configs/config.yaml
+
+# 切换不同算法
+python train.py --algo sac
+python train.py --algo ppo
+python train.py --algo td3
+python train.py --algo baseline
 ```
 
 训练过程中:
-- 模型权重保存在 `checkpoints/sac/`
+- 模型权重保存在 `checkpoints/<algo>/`
 - TensorBoard日志保存在 `logs/`
 
 ### 2. 查看训练曲线
@@ -93,6 +100,9 @@ python demo.py
 # 指定模型路径
 python demo.py --model checkpoints/sac/best_model.pth
 
+# 指定算法 (SAC/PPO/TD3/Baseline)
+python demo.py --algo ppo --model checkpoints/ppo/best_ppo_xxx.pth
+
 # 指定演示episode数
 python demo.py --episodes 10
 
@@ -101,6 +111,13 @@ python demo.py --no-tactile
 ```
 
 ## 配置说明
+
+## 算法一览
+
+- `SAC`: 软Actor-Critic，最大熵目标、双Q网络和可选自适应熵系数。
+- `PPO`: On-policy策略梯度，支持GAE、裁剪目标和多轮小批次更新。
+- `TD3`: 双Q延迟DDPG，包含目标策略平滑和延迟策略更新。
+- `Baseline`: 基于触觉启发的规则控制器，提供无学习的对照实验结果。
 
 主要配置项在 `configs/config.yaml`:
 

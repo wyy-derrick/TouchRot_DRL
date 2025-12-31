@@ -19,8 +19,8 @@ from datetime import datetime
 # 添加项目根目录到路径
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
+from algorithms import SACAgent, TD3Agent, PPOAgent, BaselineController
 from envs import LeapHandEnv
-from algorithms import SACAgent
 from utils.tactile_utils import SENSOR_NAMES
 
 
@@ -50,14 +50,27 @@ def print_tactile_state(tactile_info):
     print("-" * 40)
 
 
-def demo(model_path, config_path='configs/config.yaml', num_episodes=50, print_tactile=True):
+def build_demo_agent(algo_name, state_dim, action_dim, algo_config):
+    algo_name = algo_name.lower()
+    if algo_name == 'sac':
+        return SACAgent(state_dim=state_dim, action_dim=action_dim, config=algo_config)
+    if algo_name == 'td3':
+        return TD3Agent(state_dim=state_dim, action_dim=action_dim, config=algo_config)
+    if algo_name == 'ppo':
+        return PPOAgent(state_dim=state_dim, action_dim=action_dim, config=algo_config)
+    if algo_name == 'baseline':
+        return BaselineController(state_dim=state_dim, action_dim=action_dim, config=algo_config)
+    raise ValueError(f"不支持的算法: {algo_name}")
+
+
+def demo(model_path, config_path='configs/config.yaml', num_episodes=50, print_tactile=True, algo='sac'):
     """演示函数"""
     
     # 创建日志目录和文件
     log_dir = 'demo_logs'
     os.makedirs(log_dir, exist_ok=True)
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    log_file = os.path.join(log_dir, f'demo_log_{timestamp}.txt')
+    log_file = os.path.join(log_dir, f'demo_log_{algo}_{timestamp}.txt')
     
     # 重定向stdout到文件和终端
     class Logger:
@@ -81,7 +94,12 @@ def demo(model_path, config_path='configs/config.yaml', num_episodes=50, print_t
     # 加载配置
     config = load_config(config_path)
     env_config = config['env']
-    sac_config = config['sac']
+    algo_name = algo.lower()
+    if algo_name not in {'sac', 'td3', 'ppo', 'baseline'}:
+        raise ValueError(f"不支持的算法: {algo_name}")
+    algo_config = config.get(algo_name)
+    if algo_config is None:
+        raise KeyError(f"配置中缺少 {algo_name} 段")
     demo_config = config.get('demo', {})
     
     render_fps = demo_config.get('render_fps', 30)
@@ -95,13 +113,11 @@ def demo(model_path, config_path='configs/config.yaml', num_episodes=50, print_t
     print(f"状态维度: {state_dim}, 动作维度: {action_dim}")
     
     # 创建Agent并加载模型
-    print(f"加载模型: {model_path}")
-    agent = SACAgent(
-        state_dim=state_dim,
-        action_dim=action_dim,
-        config=sac_config
-    )
-    agent.load(model_path)
+    print(f"创建Agent ({algo_name.upper()})...")
+    agent = build_demo_agent(algo_name, state_dim, action_dim, algo_config)
+    if algo_name != 'baseline':
+        print(f"加载模型: {model_path}")
+        agent.load(model_path)
     agent.eval_mode()
     
     print("=" * 60)
@@ -201,15 +217,18 @@ if __name__ == '__main__':
                         help='模型路径')
     parser.add_argument('--config', type=str, default='configs/config.yaml',
                         help='配置文件路径')
-    parser.add_argument('--episodes', type=int, default=50,
-                        help='演示Episode数')
+    parser.add_argument('--episodes', type=int, default=5,
+                        help='演示episode数')
     parser.add_argument('--no-tactile', action='store_true',
                         help='不打印触觉信息')
+    parser.add_argument('--algo', type=str, default='sac', choices=['sac', 'td3', 'ppo', 'baseline'],
+                        help='选择演示算法')
     args = parser.parse_args()
     
     demo(
         model_path=args.model,
         config_path=args.config,
         num_episodes=args.episodes,
-        print_tactile=not args.no_tactile
+        print_tactile=not args.no_tactile,
+        algo=args.algo
     )

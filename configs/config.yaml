@@ -56,8 +56,45 @@ sac:
   auto_entropy_tuning: false       # 关闭自动调整
   alpha: 0.4                       # 固定alpha (auto_entropy_tuning=false时使用)
 
+# ==================== PPO算法配置 ====================
+ppo:
+  gamma: 0.99
+  gae_lambda: 0.95
+  clip_range: 0.2
+  lr_actor: 0.0003
+  lr_critic: 0.0003
+  entropy_coef: 0.01
+  value_coef: 0.5
+  hidden_dim: 256
+  ppo_epochs: 10
+  max_grad_norm: 0.5
+  rollout_length: 2048
+  mini_batch_size: 512
+
+# ==================== TD3算法配置 ====================
+td3:
+  gamma: 0.99
+  tau: 0.005
+  lr_actor: 0.0003
+  lr_critic: 0.0003
+  hidden_dim: 256
+  policy_noise: 0.2
+  noise_clip: 0.5
+  policy_freq: 2
+  exploration_noise: 0.1
+
+# ==================== Baseline控制器配置 ====================
+baseline:
+  num_tactile: 17
+  contact_threshold: 0.2
+  twist_gain: 0.15
+  closure_gain: 0.3
+  release_gain: 0.1
+  damping_gain: 0.05
+
 # ==================== 训练配置 ====================
 training:
+  algo: sac                       # 默认算法，可被命令行参数覆盖
   # 总训练步数
   total_timesteps: 1000000
   
@@ -81,7 +118,7 @@ training:
   
   # 保存
   save_freq: 50000                 # 模型保存频率 (步数)
-  checkpoint_dir: "checkpoints/sac"
+  checkpoint_dir: "checkpoints/{algo}"
   
   # 日志
   log_dir: "logs"
