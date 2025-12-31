@@ -6,10 +6,12 @@
 import numpy as np
 import mujoco
 
-# 17个触觉传感器名称列表 (已核对XML)
+# 触觉传感器名称列表 (已核对XML)
 SENSOR_NAMES = [
-    # 手掌 (5个)
-    "palm_1_sensor", "palm_2_sensor", "palm_3_sensor", "palm_7_sensor", "palm_8_sensor",
+    # 手掌 (7个)
+    "palm_1_sensor", "palm_2_sensor", "palm_3_sensor",
+    "palm_7a_sensor", "palm_7b_sensor", "palm_7c_sensor",
+    "palm_8_sensor",
     # 近节 (4个)
     "if_px_sensor", "mf_px_sensor", "rf_px_sensor", "th_px_sensor",
     # 中节/拇指远节 (4个)
@@ -19,7 +21,7 @@ SENSOR_NAMES = [
 ]
 
 # 传感器数量
-NUM_SENSORS = len(SENSOR_NAMES)  # 17
+NUM_SENSORS = len(SENSOR_NAMES)
 
 
 def get_sensor_ids(model, sensor_names=None):
@@ -145,7 +147,7 @@ def get_binary_tactile_state(model, data, threshold=0.01, margin=0.005, sensor_n
         sensor_names: 传感器名称列表，默认使用SENSOR_NAMES
         
     Returns:
-        binary_state: numpy数组，shape为(17,)，值为0或1
+        binary_state: numpy数组，长度等于sensor_names，值为0或1
     """
     if sensor_names is None:
         sensor_names = SENSOR_NAMES

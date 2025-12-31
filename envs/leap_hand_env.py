@@ -33,10 +33,10 @@ class LeapHandEnv(Env):
     观测空间:
         - qpos: 16维 (16个关节位置)
         - qvel: 16维 (16个关节速度)
-        - tactile: 17维 (17个触觉传感器二值状态)
+        - tactile: 19维 (19个触觉传感器二值状态)
         - target_axis: 3维 (目标旋转轴)
         - last_action: 16维 (上一帧平滑动作)
-        总维度: 68
+        总维度: 70
         
     动作空间:
         - 16维连续动作 [-1, 1]
@@ -117,7 +117,7 @@ class LeapHandEnv(Env):
             dtype=np.float32
         )
         
-        # 观测空间: qpos(16) + qvel(16) + tactile(17) + target_axis(3) + last_action(16) = 68
+        # 观测空间: qpos(16) + qvel(16) + tactile(19) + target_axis(3) + last_action(16) = 70
         obs_dim = self.n_joints * 2 + NUM_SENSORS + 3 + self.n_joints
         self.observation_space = Box(
             low=-np.inf, 

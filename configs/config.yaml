@@ -33,8 +33,8 @@ env:
     distance: -0.0                 # 距离惩罚
     contact: 0.0                   # 不再单独奖励接触
     action: -0.0                 # 轻微动作惩罚
-    fingertip_dist: 0.5           # 有界指尖距离奖励
-    collision: -0.001               # 非物体接触惩罚，抑制手指互撞/碰地
+    fingertip_dist: 1.5           # 有界指尖距离奖励
+    collision: -0.0003               # 非物体接触惩罚，抑制手指互撞/碰地
 
 # ==================== SAC算法配置 ====================
 sac:
@@ -53,7 +53,7 @@ sac:
   hidden_dim: 256
   
   # 熵调整
-  auto_entropy_tuning: false       # 关闭自动调整
+  auto_entropy_tuning: true      # 关闭自动调整
   alpha: 0.4                       # 固定alpha (auto_entropy_tuning=false时使用)
 
 # ==================== PPO算法配置 ====================
@@ -85,7 +85,7 @@ td3:
 
 # ==================== Baseline控制器配置 ====================
 baseline:
-  num_tactile: 17
+  num_tactile: 19
   contact_threshold: 0.2
   twist_gain: 0.15
   closure_gain: 0.3

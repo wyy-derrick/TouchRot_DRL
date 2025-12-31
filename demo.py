@@ -213,11 +213,11 @@ def demo(model_path, config_path='configs/config.yaml', num_episodes=50, print_t
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='LeapHand 模型演示')
-    parser.add_argument('--model', type=str, default='checkpoints/sac/model_20251222_191350_step_500000.pth',
+    parser.add_argument('--model', type=str, default='checkpoints/sac/sac_20251231_115018_step_250000.pth',
                         help='模型路径')
     parser.add_argument('--config', type=str, default='configs/config.yaml',
                         help='配置文件路径')
-    parser.add_argument('--episodes', type=int, default=5,
+    parser.add_argument('--episodes', type=int, default=50,
                         help='演示episode数')
     parser.add_argument('--no-tactile', action='store_true',
                         help='不打印触觉信息')

@@ -80,7 +80,14 @@ class Actor(nn.Module):
             mean: 动作均值（用于确定性策略）
         """
         mean, log_std = self.forward(state)
-        std = log_std.exp()
+        # 限制标准差范围并避免极端值造成数值溢出
+        log_std = torch.clamp(log_std, self.LOG_STD_MIN, self.LOG_STD_MAX)
+        std = log_std.exp().clamp(min=1e-6)
+
+        # 若出现NaN/inf输入，使用安全默认值防止CUDA launch failure
+        if (not torch.isfinite(mean).all()) or (not torch.isfinite(std).all()):
+            mean = torch.nan_to_num(mean, nan=0.0, posinf=0.0, neginf=0.0)
+            std = torch.nan_to_num(std, nan=0.1, posinf=1.0, neginf=1.0)
         
         # 创建正态分布
         normal = Normal(mean, std)
@@ -96,9 +103,14 @@ class Actor(nn.Module):
         log_prob = normal.log_prob(x_t)
         log_prob -= torch.log(1 - action.pow(2) + 1e-6)
         log_prob = log_prob.sum(dim=-1, keepdim=True)
+
+        # 数值安全: 避免NaN传递到后续计算
+        action = torch.nan_to_num(action, nan=0.0, posinf=0.0, neginf=0.0)
+        log_prob = torch.nan_to_num(log_prob, nan=0.0, posinf=0.0, neginf=0.0)
         
         # 确定性动作（评估时使用）
         mean_action = torch.tanh(mean)
+        mean_action = torch.nan_to_num(mean_action, nan=0.0, posinf=0.0, neginf=0.0)
         
         return action, log_prob, mean_action
         

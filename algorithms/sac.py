@@ -97,7 +97,15 @@ class SACAgent(BaseAgent):
                 action = torch.tanh(mean)
             else:
                 # 随机策略
-                action, _, _ = self.actor.sample(state)
+                try:
+                    action, _, _ = self.actor.sample(state)
+                except RuntimeError:
+                    # 若GPU数值异常，退回CPU采样一次作为兜底，避免训练中断
+                    action, _, _ = self.actor.sample(state.cpu())
+                    action = action.to(self.device)
+                # 若仍有非有限值，使用零动作兜底
+                if not torch.isfinite(action).all():
+                    action = torch.zeros_like(action)
                 
         return action.cpu().numpy().flatten()
         

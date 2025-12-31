@@ -13,7 +13,7 @@ class BaselineController(BaseAgent):
         self.state_dim = state_dim
         self.action_dim = action_dim
         self.config = config or {}
-        self.num_tactile = self.config.get('num_tactile', 17)
+        self.num_tactile = self.config.get('num_tactile', 19)
         self.contact_threshold = self.config.get('contact_threshold', 0.2)
         self.twist_gain = self.config.get('twist_gain', 0.15)
         self.closure_gain = self.config.get('closure_gain', 0.3)

@@ -10,7 +10,9 @@
     <material name="sensor_viz_1" rgba="1 0 0 0.7" />
     <material name="sensor_viz_2" rgba="0 1 0 0.7" />
     <material name="sensor_viz_3" rgba="0 0 1 0.7" />
-    <material name="sensor_viz_7" rgba="1 0.5 0 0.7" />
+    <material name="sensor_viz_7a" rgba="1 0.4 0 0.7" />
+    <material name="sensor_viz_7b" rgba="1 0.8 0 0.7" />
+    <material name="sensor_viz_7c" rgba="1 0.4 0.6 0.7" />
     <material name="sensor_viz_8" rgba="0.5 0 1 0.7" />
     <material name="sensor_viz_tip" rgba="0 1 1 0.7" />
     <mesh name="palm" file="palm_left.obj"/>
@@ -158,7 +160,9 @@
     <touch name="palm_1_sensor" site="palm_1_site"/>
     <touch name="palm_2_sensor" site="palm_2_site"/>
     <touch name="palm_3_sensor" site="palm_3_site"/>
-    <touch name="palm_7_sensor" site="palm_7_site"/>
+    <touch name="palm_7a_sensor" site="palm_7a_site"/>
+    <touch name="palm_7b_sensor" site="palm_7b_site"/>
+    <touch name="palm_7c_sensor" site="palm_7c_site"/>
     <touch name="palm_8_sensor" site="palm_8_site"/>
     
     <touch name="if_px_sensor" site="if_px_site"/>
@@ -198,8 +202,12 @@
       <site name="palm_2_site" pos="-0.0848 -0.0546 -0.0028" size="0.011 0.013 0.001" type="box"/>
       <geom name="palm_3_sensor_visual" type="box" size="0.011 0.013 0.001" pos="-0.0848 -0.0096 -0.0028" material="sensor_viz_3" contype="0" conaffinity="0" group="1"/>
       <site name="palm_3_site" pos="-0.0848 -0.0096 -0.0028" size="0.011 0.013 0.001" type="box"/>
-      <geom name="palm_7_sensor_visual" type="box" size="0.012 0.058 0.001" pos="-0.1238 -0.0575 -0.0093" material="sensor_viz_7" contype="0" conaffinity="0" group="1"/>
-      <site name="palm_7_site" pos="-0.1238 -0.0575 -0.0093" size="0.012 0.058 0.001" type="box"/>
+      <geom name="palm_7a_sensor_visual" type="box" size="0.012 0.019333 0.001" pos="-0.1238 -0.096167 -0.0093" material="sensor_viz_7a" contype="0" conaffinity="0" group="1"/>
+      <site name="palm_7a_site" pos="-0.1238 -0.096167 -0.0093" size="0.012 0.019333 0.001" type="box"/>
+      <geom name="palm_7b_sensor_visual" type="box" size="0.012 0.019333 0.001" pos="-0.1238 -0.0575 -0.0093" material="sensor_viz_7b" contype="0" conaffinity="0" group="1"/>
+      <site name="palm_7b_site" pos="-0.1238 -0.0575 -0.0093" size="0.012 0.019333 0.001" type="box"/>
+      <geom name="palm_7c_sensor_visual" type="box" size="0.012 0.019333 0.001" pos="-0.1238 -0.018833 -0.0093" material="sensor_viz_7c" contype="0" conaffinity="0" group="1"/>
+      <site name="palm_7c_site" pos="-0.1238 -0.018833 -0.0093" size="0.012 0.019333 0.001" type="box"/>
       <geom name="palm_8_sensor_visual" type="box" size="0.022 0.026 0.001" pos="-0.1538 -0.0375 -0.0093" material="sensor_viz_8" contype="0" conaffinity="0" group="1"/>
       <site name="palm_8_site" pos="-0.1538 -0.0375 -0.0093" size="0.022 0.026 0.001" type="box"/>
       <body name="if_bs" pos="-0.0825 -0.0857 0.0078" quat="0.500003 0.5 0.5 -0.499997">
